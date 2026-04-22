@@ -75,7 +75,7 @@ Nasıl Kullanılır?: `python3 direnc.py`
 
 # Katkıda Bulunanlar/Contributors:
 <p align="center">
-  <a href="https://github.com/fox197524">
+  <a href="https://github.com/fox7524">
     <img src="https://avatars.githubusercontent.com/u/188798769?v=4" width="70" height="70" alt="fox197524"/>
   </a>
   <a href="https://github.com/callisto1232">
