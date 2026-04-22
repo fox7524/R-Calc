@@ -1,4 +1,3 @@
-
 #by FOX
 #by Callisto1232
 
@@ -13,6 +12,10 @@ from PyQt5.QtCore import Qt, QSettings
 from PyQt5.QtGui import QPixmap, QPainter, QIcon, QColor
 import sys
 import os
+import platform
+
+# Detect the operating system
+current_os = platform.system()  # Returns 'Windows', 'Darwin' (macOS), 'Linux', etc.
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -108,21 +111,39 @@ class ResistorCalculator(QWidget):
             is_dark = False
 
         palette = QPalette()
-        if is_dark:
-            palette.setColor(QPalette.Window, QColor(53, 53, 53))
-            palette.setColor(QPalette.WindowText, Qt.white)
-            palette.setColor(QPalette.Base, QColor(35, 35, 35))
-            palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-            palette.setColor(QPalette.ToolTipBase, Qt.white)
-            palette.setColor(QPalette.ToolTipText, Qt.white)
-            palette.setColor(QPalette.Text, Qt.white)
-            palette.setColor(QPalette.Button, QColor(53, 53, 53))
-            palette.setColor(QPalette.ButtonText, Qt.white)
-            palette.setColor(QPalette.BrightText, Qt.red)
-            palette.setColor(QPalette.Highlight, QColor(142, 45, 197).lighter())
-            palette.setColor(QPalette.HighlightedText, Qt.black)
-        else:
-            palette = self.style().standardPalette()
+        if current_os == 'Darwin':  # macOS specific theme handling
+            # On macOS, use system theme more closely or adjust as needed
+            if is_dark:
+                palette.setColor(QPalette.Window, QColor(30, 30, 30))  # Slightly different dark colors for macOS
+                palette.setColor(QPalette.WindowText, Qt.white)
+                palette.setColor(QPalette.Base, QColor(20, 20, 20))
+                palette.setColor(QPalette.AlternateBase, QColor(30, 30, 30))
+                palette.setColor(QPalette.ToolTipBase, Qt.white)
+                palette.setColor(QPalette.ToolTipText, Qt.white)
+                palette.setColor(QPalette.Text, Qt.white)
+                palette.setColor(QPalette.Button, QColor(30, 30, 30))
+                palette.setColor(QPalette.ButtonText, Qt.white)
+                palette.setColor(QPalette.BrightText, Qt.red)
+                palette.setColor(QPalette.Highlight, QColor(142, 45, 197).lighter())
+                palette.setColor(QPalette.HighlightedText, Qt.black)
+            else:
+                palette = self.style().standardPalette()  # Use native macOS light theme
+        else:  # For other OS (Linux, Windows)
+            if is_dark:
+                palette.setColor(QPalette.Window, QColor(53, 53, 53))
+                palette.setColor(QPalette.WindowText, Qt.white)
+                palette.setColor(QPalette.Base, QColor(35, 35, 35))
+                palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+                palette.setColor(QPalette.ToolTipBase, Qt.white)
+                palette.setColor(QPalette.ToolTipText, Qt.white)
+                palette.setColor(QPalette.Text, Qt.white)
+                palette.setColor(QPalette.Button, QColor(53, 53, 53))
+                palette.setColor(QPalette.ButtonText, Qt.white)
+                palette.setColor(QPalette.BrightText, Qt.red)
+                palette.setColor(QPalette.Highlight, QColor(142, 45, 197).lighter())
+                palette.setColor(QPalette.HighlightedText, Qt.black)
+            else:
+                palette = self.style().standardPalette()
 
         self.setPalette(palette)
 
@@ -159,7 +180,7 @@ class ResistorCalculator(QWidget):
         # 3rd number: width of the band overlay rectangle (pixels)
         # 4th number: height of the band overlay rectangle (pixels)
         band_geometry_map = {
-            4: [(120, 15, 15, 79), (162, 15, 15, 79), (204, 15, 15, 79), (294, 10, 15, 92)],  # 4-band resistor geometries
+            4: [(115, 15, 15, 79), (157, 15, 15, 79), (199, 15, 15, 79), (289, 10, 15, 92)],  # 4-band resistor geometries
             5: [(65, 16, 15, 81), (121, 22, 15, 67), (158, 22, 15, 67), (195, 22, 15, 67), (274, 16, 15, 81)],  # 5-band resistor geometries
             6: [(50, 10, 16, 89), (112, 16, 15, 75), (135, 16, 15, 75), (158, 16, 15, 75), (220, 16, 15, 75), (276, 10, 16, 89)]  # 6-band resistor geometries
         }
@@ -209,51 +230,19 @@ class ResistorCalculator(QWidget):
         self.update_bands()
 
     def update_bands(self):
-        for i, cb in enumerate(self.combo_boxes):
-            renk = cb.currentText()
-            if i < len(self.bantlar):
-                renk_hex = RENKLER_HEX.get(renk, "#000000")
-                self.bantlar[i].setStyleSheet(f"background-color: {renk_hex}; border: 1px solid #222;")
-            self.settings.setValue(f"bant_{i}", renk)
+        for i, band in enumerate(self.bantlar):
+            if i < len(self.combo_boxes):
+                selected_color = self.combo_boxes[i].currentText()
+                color_hex = RENKLER_HEX.get(selected_color, "#000000")
+                band.setStyleSheet(f"background-color: {color_hex}; border: 1px solid #222;")
+            else:
+                band.setStyleSheet("background-color: #000000; border: 1px solid #222;")
+
         self.calculate_resistor()
 
     def calculate_resistor(self):
-        try:
-            bands = [cb.currentText() for cb in self.combo_boxes]
-            significant_digits = ""
-            multiplier = 1
-            tolerance = ""
-            temp_coeff = ""
-
-            band_count = len(bands)
-
-            if band_count == 4:
-                significant_digits = f"{color_values[bands[0]][0]}{color_values[bands[1]][0]}"
-                multiplier = color_values[bands[2]][1]
-                tolerance = color_values[bands[3]][2] or ""
-            elif band_count == 5:
-                significant_digits = f"{color_values[bands[0]][0]}{color_values[bands[1]][0]}{color_values[bands[2]][0]}"
-                multiplier = color_values[bands[3]][1]
-                tolerance = color_values[bands[4]][2] or ""
-            elif band_count == 6:
-                significant_digits = f"{color_values[bands[0]][0]}{color_values[bands[1]][0]}{color_values[bands[2]][0]}"
-                multiplier = color_values[bands[3]][1]
-                tolerance = color_values[bands[4]][2] or ""
-                temp_coeff = f", T.C: {bands[5]}"
-
-            value = int(significant_digits) * multiplier
-
-            if value >= 1e6:
-                display_value = f"{value / 1e6:.2f} MΩ"
-            elif value >= 1e3:
-                display_value = f"{value / 1e3:.2f} kΩ"
-            else:
-                display_value = f"{value:.2f} Ω"
-
-            self.result_label.setText(f"Direnç Değeri: {display_value} {tolerance}{temp_coeff}")
-        except Exception as e:
-            self.result_label.setText("Hata: Geçersiz giriş.")
-
+        pass
+        pass
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
