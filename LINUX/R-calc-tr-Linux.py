@@ -152,10 +152,16 @@ class ResistorCalculator(QWidget):
                 if widget: widget.deleteLater()
             self.cb_layout.removeItem(layout_item)
 
+        # Geometry map for positioning colored band overlays on the resistor image
+        # Each tuple (x, y, width, height):
+        # 1st number: horizontal position of the top-left corner (pixels from left edge of image)
+        # 2nd number: vertical position of the top-left corner (pixels from top edge of image)
+        # 3rd number: width of the band overlay rectangle (pixels)
+        # 4th number: height of the band overlay rectangle (pixels)
         band_geometry_map = {
-            4: [(115, 15, 15, 79), (157, 15, 15, 79), (199, 15, 15, 79), (289, 10, 15, 92)],
-            5: [(65, 16, 15, 81), (121, 22, 15, 67), (158, 22, 15, 67), (195, 22, 15, 67), (274, 16, 15, 81)],
-            6: [(50, 10, 16, 89), (112, 16, 15, 75), (135, 16, 15, 75), (158, 16, 15, 75), (220, 16, 15, 75), (276, 10, 16, 89)]
+            4: [(120, 15, 15, 79), (162, 15, 15, 79), (204, 15, 15, 79), (294, 10, 15, 92)],  # 4-band resistor geometries
+            5: [(65, 16, 15, 81), (121, 22, 15, 67), (158, 22, 15, 67), (195, 22, 15, 67), (274, 16, 15, 81)],  # 5-band resistor geometries
+            6: [(50, 10, 16, 89), (112, 16, 15, 75), (135, 16, 15, 75), (158, 16, 15, 75), (220, 16, 15, 75), (276, 10, 16, 89)]  # 6-band resistor geometries
         }
         band_geometries = band_geometry_map[band_count]
         for geom in band_geometries:
