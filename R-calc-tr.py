@@ -8,14 +8,63 @@ from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QComboBox, QSpinBox, QFrame
 )
-from PyQt5.QtCore import Qt, QSettings
+from PyQt5.QtCore import Qt, QSettings, QStandardPaths
 from PyQt5.QtGui import QPixmap, QPainter, QIcon, QColor
 import sys
 import os
 import platform
+import json
 
 # Detect the operating system
 current_os = platform.system()  # Returns 'Windows', 'Darwin' (macOS), 'Linux', etc.
+
+def detect_dark_mode():
+    """Detect dark mode with fallbacks for different operating systems."""
+    try:
+        import darkdetect
+        return darkdetect.isDark()
+    except (ImportError, Exception):
+        pass
+    
+    # Fallback: Check environment variables for Linux
+    if current_os == 'Linux':
+        # Check GTK theme (most common on Linux)
+        gtk_theme = os.environ.get('GTK_THEME', '').lower()
+        if 'dark' in gtk_theme:
+            return True
+        
+        # Check Qt environment
+        qt_style = os.environ.get('QT_STYLE_OVERRIDE', '').lower()
+        if 'dark' in qt_style:
+            return True
+        
+        # Check common theme config files
+        theme_files = [
+            os.path.expanduser('~/.config/gtk-3.0/settings.ini'),
+            os.path.expanduser('~/.gtkrc-2.0')
+        ]
+        
+        for theme_file in theme_files:
+            try:
+                with open(theme_file, 'r') as f:
+                    content = f.read().lower()
+                    if 'gtk-application-prefer-dark-theme=true' in content or 'theme-name' in content and 'dark' in content:
+                        return True
+            except (FileNotFoundError, IOError):
+                pass
+        
+        # Default to dark for Kali/Debian-based dark distros
+        try:
+            if os.path.exists('/etc/os-release'):
+                with open('/etc/os-release', 'r') as f:
+                    os_info = f.read().lower()
+                    if 'kali' in os_info or 'parrot' in os_info:
+                        return True
+        except:
+            pass
+    
+    # Default fallback
+    return False
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -58,7 +107,13 @@ class ResistorCalculator(QWidget):
         self.setWindowTitle("Direnç Hesaplayıcı")
         self.setFixedWidth(400)
 
-        self.settings = QSettings("fox&callisto", "direnc_app")
+        # Use portable QSettings path that works across all platforms
+        if current_os == 'Linux':
+            config_path = os.path.expanduser('~/.config/direnc_app')
+            os.makedirs(config_path, exist_ok=True)
+            self.settings = QSettings(os.path.join(config_path, 'settings.ini'), QSettings.IniFormat)
+        else:
+            self.settings = QSettings("fox&callisto", "direnc_app")
 
         ana_layout = QVBoxLayout()
         self.setLayout(ana_layout)
@@ -104,11 +159,7 @@ class ResistorCalculator(QWidget):
 
     def apply_system_theme(self):
         from PyQt5.QtGui import QPalette
-        try:
-            import darkdetect
-            is_dark = darkdetect.isDark()
-        except: 
-            is_dark = False
+        is_dark = detect_dark_mode()
 
         palette = QPalette()
         if current_os == 'Darwin':  # macOS specific theme handling
@@ -128,7 +179,23 @@ class ResistorCalculator(QWidget):
                 palette.setColor(QPalette.HighlightedText, Qt.black)
             else:
                 palette = self.style().standardPalette()  # Use native macOS light theme
-        else:  # For other OS (Linux, Windows)
+        elif current_os == 'Linux':  # Linux specific theme handling
+            if is_dark:
+                palette.setColor(QPalette.Window, QColor(53, 53, 53))
+                palette.setColor(QPalette.WindowText, Qt.black)
+                palette.setColor(QPalette.Base, QColor(35, 35, 35))
+                palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+                palette.setColor(QPalette.ToolTipBase, Qt.black)
+                palette.setColor(QPalette.ToolTipText, Qt.black)
+                palette.setColor(QPalette.Text, Qt.black)
+                palette.setColor(QPalette.Button, QColor(53, 53, 53))
+                palette.setColor(QPalette.ButtonText, Qt.black)
+                palette.setColor(QPalette.BrightText, Qt.red)
+                palette.setColor(QPalette.Highlight, QColor(142, 45, 197).lighter())
+                palette.setColor(QPalette.HighlightedText, Qt.black)
+            else:
+                palette = self.style().standardPalette()
+        else:  # For Windows
             if is_dark:
                 palette.setColor(QPalette.Window, QColor(53, 53, 53))
                 palette.setColor(QPalette.WindowText, Qt.white)
