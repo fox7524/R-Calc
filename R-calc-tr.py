@@ -310,19 +310,50 @@ class ResistorCalculator(QWidget):
         self.update_bands()
 
     def update_bands(self):
-        for i, band in enumerate(self.bantlar):
-            if i < len(self.combo_boxes):
-                selected_color = self.combo_boxes[i].currentText()
-                color_hex = RENKLER_HEX.get(selected_color, "#000000")
-                band.setStyleSheet(f"background-color: {color_hex}; border: 1px solid #222;")
-            else:
-                band.setStyleSheet("background-color: #000000; border: 1px solid #222;")
-
+        for i, cb in enumerate(self.combo_boxes):
+            renk = cb.currentText()
+            if i < len(self.bantlar):
+                renk_hex = RENKLER_HEX.get(renk, "#000000")
+                self.bantlar[i].setStyleSheet(f"background-color: {renk_hex}; border: 1px solid #222;")
+            self.settings.setValue(f"band_{i}", renk)
         self.calculate_resistor()
 
     def calculate_resistor(self):
-        pass
-        pass
+        try:
+            bands = [cb.currentText() for cb in self.combo_boxes]
+            significant_digits = ""
+            multiplier = 1
+            tolerance = ""
+            temp_coeff = ""
+
+            band_count = len(bands)
+
+            if band_count == 4:
+                significant_digits = f"{color_values[bands[0]][0]}{color_values[bands[1]][0]}"
+                multiplier = color_values[bands[2]][1]
+                tolerance = color_values[bands[3]][2] or ""
+            elif band_count == 5:
+                significant_digits = f"{color_values[bands[0]][0]}{color_values[bands[1]][0]}{color_values[bands[2]][0]}"
+                multiplier = color_values[bands[3]][1]
+                tolerance = color_values[bands[4]][2] or ""
+            elif band_count == 6:
+                significant_digits = f"{color_values[bands[0]][0]}{color_values[bands[1]][0]}{color_values[bands[2]][0]}"
+                multiplier = color_values[bands[3]][1]
+                tolerance = color_values[bands[4]][2] or ""
+                temp_coeff = f", S.K: {bands[5]}"
+
+            value = int(significant_digits) * multiplier
+
+            if value >= 1e6:
+                display_value = f"{value / 1e6:.2f} MΩ"
+            elif value >= 1e3:
+                display_value = f"{value / 1e3:.2f} kΩ"
+            else:
+                display_value = f"{value:.2f} Ω"
+
+            self.result_label.setText(f"Direnç Değeri: {display_value} {tolerance}{temp_coeff}")
+        except Exception:
+            self.result_label.setText("Hata: Geçersiz giriş.")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
