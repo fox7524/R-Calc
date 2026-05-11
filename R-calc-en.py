@@ -1,19 +1,70 @@
-
 #by FOX
 #by Callisto1232
 
-# Resistor Calculator Application
-# This application calculates resistor values using resistor band colors.
-
+# Direnç Hesaplayıcı Uygulaması
+# Bu uygulama, direnç bant renklerini kullanarak direnç değerlerini hesaplar.
 
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QComboBox, QSpinBox, QFrame
 )
-from PyQt5.QtCore import Qt, QSettings
+from PyQt5.QtCore import Qt, QSettings, QStandardPaths
 from PyQt5.QtGui import QPixmap, QPainter, QIcon, QColor
 import sys
 import os
+import platform
+import json
+
+# Detect the operating system
+current_os = platform.system()  # Returns 'Windows', 'Darwin' (macOS), 'Linux', etc.
+
+def detect_dark_mode():
+    """Detect dark mode with fallbacks for different operating systems."""
+    try:
+        import darkdetect
+        return darkdetect.isDark()
+    except (ImportError, Exception):
+        pass
+    
+    # Fallback: Check environment variables for Linux
+    if current_os == 'Linux':
+        # Check GTK theme (most common on Linux)
+        gtk_theme = os.environ.get('GTK_THEME', '').lower()
+        if 'dark' in gtk_theme:
+            return True
+        
+        # Check Qt environment
+        qt_style = os.environ.get('QT_STYLE_OVERRIDE', '').lower()
+        if 'dark' in qt_style:
+            return True
+        
+        # Check common theme config files
+        theme_files = [
+            os.path.expanduser('~/.config/gtk-3.0/settings.ini'),
+            os.path.expanduser('~/.gtkrc-2.0')
+        ]
+        
+        for theme_file in theme_files:
+            try:
+                with open(theme_file, 'r') as f:
+                    content = f.read().lower()
+                    if 'gtk-application-prefer-dark-theme=true' in content or 'theme-name' in content and 'dark' in content:
+                        return True
+            except (FileNotFoundError, IOError):
+                pass
+        
+        # Default to dark for Kali/Debian-based dark distros
+        try:
+            if os.path.exists('/etc/os-release'):
+                with open('/etc/os-release', 'r') as f:
+                    os_info = f.read().lower()
+                    if 'kali' in os_info or 'parrot' in os_info:
+                        return True
+        except:
+            pass
+    
+    # Default fallback
+    return False
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -33,7 +84,7 @@ color_values = {
     "": (None, None, "")
 }
 
-RENKLER_HEX = {
+COLORS_HEX = {
     "Black": "#000000",
     "Brown": "#8B4513",
     "Red": "#FF0000",
@@ -56,7 +107,13 @@ class ResistorCalculator(QWidget):
         self.setWindowTitle("Resistor Calculator")
         self.setFixedWidth(400)
 
-        self.settings = QSettings("fox&callisto", "direnc_app")
+        # Use portable QSettings path that works across all platforms
+        if current_os == 'Linux':
+            config_path = os.path.expanduser('~/.config/direnc_app')
+            os.makedirs(config_path, exist_ok=True)
+            self.settings = QSettings(os.path.join(config_path, 'settings.ini'), QSettings.IniFormat)
+        else:
+            self.settings = QSettings("fox&callisto", "direnc_app")
 
         ana_layout = QVBoxLayout()
         self.setLayout(ana_layout)
@@ -69,7 +126,7 @@ class ResistorCalculator(QWidget):
         self.band_count_selector = QComboBox()
         self.band_count_selector.addItems(["4", "5", "6"])
         self.band_count_selector.currentTextChanged.connect(self.refresh_band_setup)
-        ana_layout.addWidget(QLabel("Choose Band Count:"))
+        ana_layout.addWidget(QLabel("Band Count:"))
         ana_layout.addWidget(self.band_count_selector)
 
         self.cb_layout = QHBoxLayout()
@@ -79,7 +136,7 @@ class ResistorCalculator(QWidget):
         self.direnc_resmi.setAlignment(Qt.AlignCenter)
         ana_layout.addWidget(self.direnc_resmi)
 
-        self.result_label = QLabel("Resistance Value: -")
+        self.result_label = QLabel("Resistor Value: -")
         ana_layout.addWidget(self.result_label)
         
         self.language_label = QLabel("English")
@@ -102,28 +159,58 @@ class ResistorCalculator(QWidget):
 
     def apply_system_theme(self):
         from PyQt5.QtGui import QPalette
-        try:
-            import darkdetect
-            is_dark = darkdetect.isDark()
-        except: 
-            is_dark = False
+        is_dark = detect_dark_mode()
 
         palette = QPalette()
-        if is_dark:
-            palette.setColor(QPalette.Window, QColor(53, 53, 53))
-            palette.setColor(QPalette.WindowText, Qt.white)
-            palette.setColor(QPalette.Base, QColor(35, 35, 35))
-            palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-            palette.setColor(QPalette.ToolTipBase, Qt.white)
-            palette.setColor(QPalette.ToolTipText, Qt.white)
-            palette.setColor(QPalette.Text, Qt.white)
-            palette.setColor(QPalette.Button, QColor(53, 53, 53))
-            palette.setColor(QPalette.ButtonText, Qt.white)
-            palette.setColor(QPalette.BrightText, Qt.red)
-            palette.setColor(QPalette.Highlight, QColor(142, 45, 197).lighter())
-            palette.setColor(QPalette.HighlightedText, Qt.black)
-        else:
-            palette = self.style().standardPalette()
+        if current_os == 'Darwin':  # macOS specific theme handling
+            # On macOS, use system theme more closely or adjust as needed
+            if is_dark:
+                palette.setColor(QPalette.Window, QColor(30, 30, 30))  # Slightly different dark colors for macOS
+                palette.setColor(QPalette.WindowText, Qt.white)
+                palette.setColor(QPalette.Base, QColor(20, 20, 20))
+                palette.setColor(QPalette.AlternateBase, QColor(30, 30, 30))
+                palette.setColor(QPalette.ToolTipBase, Qt.white)
+                palette.setColor(QPalette.ToolTipText, Qt.white)
+                palette.setColor(QPalette.Text, Qt.white)
+                palette.setColor(QPalette.Button, QColor(30, 30, 30))
+                palette.setColor(QPalette.ButtonText, Qt.white)
+                palette.setColor(QPalette.BrightText, Qt.red)
+                palette.setColor(QPalette.Highlight, QColor(142, 45, 197).lighter())
+                palette.setColor(QPalette.HighlightedText, Qt.black)
+            else:
+                palette = self.style().standardPalette()  # Use native macOS light theme
+        elif current_os == 'Linux':  # Linux specific theme handling
+            if is_dark:
+                palette.setColor(QPalette.Window, QColor(53, 53, 53))
+                palette.setColor(QPalette.WindowText, Qt.black)
+                palette.setColor(QPalette.Base, QColor(35, 35, 35))
+                palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+                palette.setColor(QPalette.ToolTipBase, Qt.black)
+                palette.setColor(QPalette.ToolTipText, Qt.black)
+                palette.setColor(QPalette.Text, Qt.black)
+                palette.setColor(QPalette.Button, QColor(53, 53, 53))
+                palette.setColor(QPalette.ButtonText, Qt.black)
+                palette.setColor(QPalette.BrightText, Qt.red)
+                palette.setColor(QPalette.Highlight, QColor(142, 45, 197).lighter())
+                palette.setColor(QPalette.HighlightedText, Qt.black)
+            else:
+                palette = self.style().standardPalette()
+        else:  # For Windows
+            if is_dark:
+                palette.setColor(QPalette.Window, QColor(53, 53, 53))
+                palette.setColor(QPalette.WindowText, Qt.white)
+                palette.setColor(QPalette.Base, QColor(35, 35, 35))
+                palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+                palette.setColor(QPalette.ToolTipBase, Qt.white)
+                palette.setColor(QPalette.ToolTipText, Qt.white)
+                palette.setColor(QPalette.Text, Qt.white)
+                palette.setColor(QPalette.Button, QColor(53, 53, 53))
+                palette.setColor(QPalette.ButtonText, Qt.white)
+                palette.setColor(QPalette.BrightText, Qt.red)
+                palette.setColor(QPalette.Highlight, QColor(142, 45, 197).lighter())
+                palette.setColor(QPalette.HighlightedText, Qt.black)
+            else:
+                palette = self.style().standardPalette()
 
         self.setPalette(palette)
 
@@ -140,7 +227,7 @@ class ResistorCalculator(QWidget):
             pixmap = QPixmap(image_path).scaled(500, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.direnc_resmi.setPixmap(pixmap)
         else:
-            self.direnc_resmi.setText(f"Image not found\n{image_path}\n\n4/5/6bant.png")
+            self.direnc_resmi.setText(f"Resim bulunamadı\n{image_path}\n\n4/5/6bant.png")
 
         for band in getattr(self, 'bantlar', []):
             band.deleteLater()
@@ -153,11 +240,30 @@ class ResistorCalculator(QWidget):
                 if widget: widget.deleteLater()
             self.cb_layout.removeItem(layout_item)
 
-        band_geometry_map = {
-            4: [(115, 15, 15, 79), (157, 15, 15, 79), (199, 15, 15, 79), (289, 10, 15, 92)],
-            5: [(65, 16, 15, 81), (121, 22, 15, 67), (158, 22, 15, 67), (195, 22, 15, 67), (274, 16, 15, 81)],
-            6: [(50, 10, 16, 89), (112, 16, 15, 75), (135, 16, 15, 75), (158, 16, 15, 75), (220, 16, 15, 75), (276, 10, 16, 89)]
-        }
+        # Geometry map for positioning colored band overlays on the resistor image
+        # Each tuple (x, y, width, height):
+        # 1st number: horizontal position of the top-left corner (pixels from left edge of image)
+        # 2nd number: vertical position of the top-left corner (pixels from top edge of image)
+        # 3rd number: width of the band overlay rectangle (pixels)
+        # 4th number: height of the band overlay rectangle (pixels)
+        if current_os == 'Darwin':  # macOS
+            band_geometry_map = {
+                4: [(115, 15, 15, 79), (157, 15, 15, 79), (199, 15, 15, 79), (289, 10, 15, 92)],
+                5: [(65, 16, 15, 81), (121, 22, 15, 67), (158, 22, 15, 67), (195, 22, 15, 67), (274, 16, 15, 81)],
+                6: [(50, 10, 16, 89), (112, 16, 15, 75), (135, 16, 15, 75), (158, 16, 15, 75), (220, 16, 15, 75), (276, 10, 16, 89)]
+            }
+        elif current_os == 'Linux':  # Linux/Kali
+            band_geometry_map = {
+                4: [(124, 15, 15, 79), (166, 15, 15, 79), (208, 15, 15, 79), (298, 12, 15, 92)],
+                5: [(74, 16, 15, 81), (131, 22, 15, 67), (168, 22, 15, 67), (205, 22, 15, 67), (284, 16, 15, 81)],
+                6: [(60, 10, 16, 89), (121, 16, 15, 75), (144, 16, 15, 75), (167, 16, 15, 75), (229, 16, 15, 75), (286, 10, 16, 89)]
+            }
+        else:  # Windows
+            band_geometry_map = {
+                4: [(115, 15, 15, 79), (157, 15, 15, 79), (199, 15, 15, 79), (289, 10, 15, 92)],
+                5: [(65, 16, 15, 81), (121, 22, 15, 67), (158, 22, 15, 67), (195, 22, 15, 67), (274, 16, 15, 81)],
+                6: [(50, 10, 16, 89), (112, 16, 15, 75), (135, 16, 15, 75), (158, 16, 15, 75), (220, 16, 15, 75), (276, 10, 16, 89)]
+            }
         band_geometries = band_geometry_map[band_count]
         for geom in band_geometries:
             x, y, w, h = geom
@@ -169,7 +275,7 @@ class ResistorCalculator(QWidget):
             renk_bandi.raise_()
             self.bantlar.append(renk_bandi)
 
-        etiketler = ["1st Band", "2nd Band", "3rd Band", "Multiplier", "Tolerance", "Temperature Coefficient"]
+        band_names = ["1st Band", "2nd Band", "3rd Band", "Multiplier", "Tolerance", "Temperature Coefficient"]
         self.combo_boxes = []
         for i in range(band_count):
             dikey = QVBoxLayout()
@@ -183,7 +289,7 @@ class ResistorCalculator(QWidget):
                 painter = QPainter(icon_pixmap)
                 painter.setBrush(Qt.black)
                 painter.setPen(Qt.black)
-                renk_hex = RENKLER_HEX.get(renk_adi, "#000000")
+                renk_hex = COLORS_HEX.get(renk_adi, "#000000")
                 painter.setBrush(QColor(renk_hex))
                 painter.drawRect(0, 0, 20, 20)
                 painter.end()
@@ -196,7 +302,7 @@ class ResistorCalculator(QWidget):
 
         for i, cb in enumerate(self.combo_boxes):
             value = self.settings.value(f"band_{i}", "")
-            if value in RENKLER_HEX:
+            if value in COLORS_HEX:
                 cb.blockSignals(True)
                 cb.setCurrentText(value)
                 cb.blockSignals(False)
@@ -207,7 +313,7 @@ class ResistorCalculator(QWidget):
         for i, cb in enumerate(self.combo_boxes):
             renk = cb.currentText()
             if i < len(self.bantlar):
-                renk_hex = RENKLER_HEX.get(renk, "#000000")
+                renk_hex = COLORS_HEX.get(renk, "#000000")
                 self.bantlar[i].setStyleSheet(f"background-color: {renk_hex}; border: 1px solid #222;")
             self.settings.setValue(f"band_{i}", renk)
         self.calculate_resistor()
@@ -234,7 +340,7 @@ class ResistorCalculator(QWidget):
                 significant_digits = f"{color_values[bands[0]][0]}{color_values[bands[1]][0]}{color_values[bands[2]][0]}"
                 multiplier = color_values[bands[3]][1]
                 tolerance = color_values[bands[4]][2] or ""
-                temp_coeff = f", T.C: {bands[5]}"
+                temp_coeff = f", S.K: {bands[5]}"
 
             value = int(significant_digits) * multiplier
 
@@ -245,10 +351,9 @@ class ResistorCalculator(QWidget):
             else:
                 display_value = f"{value:.2f} Ω"
 
-            self.result_label.setText(f"Resistance Value: {display_value} {tolerance}{temp_coeff}")
-        except Exception as e:
-            self.result_label.setText("Error: Invalid input.")
-
+            self.result_label.setText(f"Direnç Değeri: {display_value} {tolerance}{temp_coeff}")
+        except Exception:
+            self.result_label.setText("Hata: Geçersiz giriş.")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
