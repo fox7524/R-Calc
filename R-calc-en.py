@@ -1,8 +1,7 @@
-#by FOX
+#by fox7524
 #by Callisto1232
 
-# Direnç Hesaplayıcı Uygulaması
-# Bu uygulama, direnç bant renklerini kullanarak direnç değerlerini hesaplar.
+#Resistor value calculator
 
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
@@ -139,7 +138,7 @@ class ResistorCalculator(QWidget):
         self.result_label = QLabel("Resistor Value: -")
         ana_layout.addWidget(self.result_label)
         
-        self.language_label = QLabel("English")
+        self.language_label = QLabel("En")
         self.language_label.setStyleSheet("font-size: 10px; color: gray;")
         self.language_label.setAlignment(Qt.AlignCenter)        
 
@@ -218,18 +217,18 @@ class ResistorCalculator(QWidget):
         band_count = int(self.band_count_selector.currentText())
 
         image_paths = {
-            4: os.path.join(base_dir, "4bant.png"),
-            5: os.path.join(base_dir, "5bant.png"),
-            6: os.path.join(base_dir, "6bant.png")
+            4: os.path.join(base_dir, "4band.png"),
+            5: os.path.join(base_dir, "5band.png"),
+            6: os.path.join(base_dir, "6band.png")
         }
         image_path = image_paths[band_count]
         if os.path.exists(image_path):
             pixmap = QPixmap(image_path).scaled(500, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.direnc_resmi.setPixmap(pixmap)
         else:
-            self.direnc_resmi.setText(f"Resim bulunamadı\n{image_path}\n\n4/5/6bant.png")
+            self.direnc_resmi.setText(f"Image not found!\n{image_path}\n\n4/5/6band.png")
 
-        for band in getattr(self, 'bantlar', []):
+        for band in getattr(self, 'bands', []):
             band.deleteLater()
         self.bantlar = []
 
@@ -279,7 +278,7 @@ class ResistorCalculator(QWidget):
         self.combo_boxes = []
         for i in range(band_count):
             dikey = QVBoxLayout()
-            etiket = QLabel(etiketler[i])
+            etiket = QLabel(band_names[i])
             cb = QComboBox()
             for renk_adi in color_values.keys():
                 if renk_adi == "":
@@ -351,9 +350,9 @@ class ResistorCalculator(QWidget):
             else:
                 display_value = f"{value:.2f} Ω"
 
-            self.result_label.setText(f"Direnç Değeri: {display_value} {tolerance}{temp_coeff}")
+            self.result_label.setText(f"Resistor Value: {display_value} {tolerance}{temp_coeff}")
         except Exception:
-            self.result_label.setText("Hata: Geçersiz giriş.")
+            self.result_label.setText("Error: Invalid Input.")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
