@@ -5,7 +5,7 @@
 
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QComboBox, QSpinBox, QFrame, QPushButton, QLineEdit
+    QLabel, QComboBox, QSpinBox, QFrame, QPushButton, QLineEdit, QStackedWidget
 )
 import math
 from PyQt5.QtCore import Qt, QSettings, QStandardPaths
@@ -106,6 +106,7 @@ class ResistorCalculator(QWidget):
         super().__init__()
         self.setWindowTitle("Resistor Calculator")
         self.setFixedWidth(400)
+        self.setMinimumHeight(450)
 
         # Use portable QSettings path that works across all platforms
         if current_os == 'Linux':
@@ -134,10 +135,13 @@ class ResistorCalculator(QWidget):
         ana_layout.addWidget(QLabel("Band Count:"))
         ana_layout.addWidget(self.band_count_selector)
 
+        self.input_stack = QStackedWidget()
+        ana_layout.addWidget(self.input_stack)
+
         self.cb_container = QWidget()
         self.cb_layout = QHBoxLayout(self.cb_container)
         self.cb_container.setContentsMargins(0, 0, 0, 0)
-        ana_layout.addWidget(self.cb_container)
+        self.input_stack.addWidget(self.cb_container)
 
         self.ohms_container = QWidget()
         self.ohms_layout = QHBoxLayout(self.ohms_container)
@@ -151,8 +155,7 @@ class ResistorCalculator(QWidget):
         self.ohms_layout.addWidget(QLabel("Resistance:"))
         self.ohms_layout.addWidget(self.ohm_input)
         self.ohms_layout.addWidget(self.unit_combo)
-        ana_layout.addWidget(self.ohms_container)
-        self.ohms_container.hide()
+        self.input_stack.addWidget(self.ohms_container)
 
         self.direnc_resmi = QLabel()
         self.direnc_resmi.setAlignment(Qt.AlignCenter)
@@ -160,6 +163,9 @@ class ResistorCalculator(QWidget):
 
         self.result_label = QLabel("Resistor Value: -")
         ana_layout.addWidget(self.result_label)
+        
+        ana_layout.addSpacing(10)
+        ana_layout.addStretch(1)
         
         self.language_label = QLabel("En")
         self.language_label.setStyleSheet("font-size: 10px; color: gray;")
@@ -386,14 +392,12 @@ class ResistorCalculator(QWidget):
         if self.calc_mode == 0:
             self.calc_mode = 1
             self.mode_btn.setText("Switch to Colors -> Ohms")
-            self.cb_container.hide()
-            self.ohms_container.show()
+            self.input_stack.setCurrentIndex(1)
             self.calculate_from_ohms()
         else:
             self.calc_mode = 0
             self.mode_btn.setText("Switch to Ohms -> Colors")
-            self.ohms_container.hide()
-            self.cb_container.show()
+            self.input_stack.setCurrentIndex(0)
             self.calculate_resistor()
 
     def calculate_from_ohms(self):
